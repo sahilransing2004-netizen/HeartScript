@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HeartScript — ECG Classifier</title>
+<style>
+  :root {
+    --bg: #0f1720;
+    --panel: #17212c;
+    --border: #2a3745;
+    --text: #e6edf3;
+    --muted: #8b98a5;
+    --accent: #3ba1ff;
+    --normal: #2ecc71;
+    --abnormal: #e74c3c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    width: 100%;
+    max-width: 520px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+  }
+  h1 {
+    font-size: 22px;
+    margin: 0 0 4px;
+    letter-spacing: -0.02em;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 0 0 24px;
+  }
+  .dropzone {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .dropzone.dragover {
+    border-color: var(--accent);
+    background: rgba(59, 161, 255, 0.06);
+  }
+  .dropzone p {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .dropzone .icon {
+    font-size: 32px;
+  }
+  input[type="file"] { display: none; }
+  .preview {
+    margin-top: 20px;
+    text-align: center;
+  }
+  .preview img {
+    max-width: 100%;
+    max-height: 240px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .result {
+    margin-top: 20px;
+    padding: 18px;
+    border-radius: 10px;
+    display: none;
+  }
+  .result.show { display: block; }
+  .result.normal { background: rgba(46, 204, 113, 0.1); border: 1px solid var(--normal); }
+  .result.abnormal { background: rgba(231, 76, 60, 0.1); border: 1px solid var(--abnormal); }
+  .result .label {
+    font-size: 20px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .result.normal .label { color: var(--normal); }
+  .result.abnormal .label { color: var(--abnormal); }
+  .result .confidence {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 4px;
+  }
+  .status {
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+    margin-top: 16px;
+  }
+  .disclaimer {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>HeartScript</h1>
+    <p class="subtitle">Upload an ECG image to check normal vs abnormal</p>
+
+    <div class="dropzone" id="dropzone">
+      <div class="icon">📄</div>
+      <p><strong>Drag & drop</strong> an ECG image here, or click to browse</p>
+      <input type="file" id="fileInput" accept="image/*" />
+    </div>
+
+    <div class="preview" id="preview"></div>
+    <div class="status" id="status"></div>
+    <div class="result" id="result">
+      <div class="label" id="resultLabel"></div>
+      <div class="confidence" id="resultConfidence"></div>
+    </div>
+
+    <div class="disclaimer">
+      This is a research prototype for academic demonstration only. It is not a
+      medical device and must not be used for real diagnosis or treatment decisions.
+    </div>
+  </div>
+
+<script>
+  const API_URL = "http://localhost:8000/predict";
+
+  const dropzone = document.getElementById("dropzone");
+  const fileInput = document.getElementById("fileInput");
+  const preview = document.getElementById("preview");
+  const status = document.getElementById("status");
+  const result = document.getElementById("result");
+  const resultLabel = document.getElementById("resultLabel");
+  const resultConfidence = document.getElementById("resultConfidence");
+
+  dropzone.addEventListener("click", () => fileInput.click());
+
+  dropzone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    dropzone.classList.add("dragover");
+  });
+
+  dropzone.addEventListener("dragleave", () => {
+    dropzone.classList.remove("dragover");
+  });
+
+  dropzone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropzone.classList.remove("dragover");
+    if (e.dataTransfer.files.length) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  });
+
+  fileInput.addEventListener("change", () => {
+    if (fileInput.files.length) {
+      handleFile(fileInput.files[0]);
+    }
+  });
+
+  function handleFile(file) {
+    if (!file.type.startsWith("image/")) {
+      status.textContent = "Please upload an image file.";
+      return;
+    }
+
+    preview.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="ECG preview" />`;
+    result.classList.remove("show", "normal", "abnormal");
+    status.textContent = "Analyzing...";
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    fetch(API_URL, { method: "POST", body: formData })
+      .then((res) => {
+        if (!res.ok) throw new Error("Server error " + res.status);
+        return res.json();
+      })
+      .then((data) => {
+        status.textContent = "";
+        result.classList.add("show", data.label);
+        resultLabel.textContent = data.label;
+        resultConfidence.textContent =
+          `Confidence: ${(data.confidence * 100).toFixed(1)}%  ·  ` +
+          `P(normal)=${data.p_normal}  P(abnormal)=${data.p_abnormal}`;
+      })
+      .catch((err) => {
+        status.textContent = "Error: " + err.message + " (is the backend running?)";
+      });
+  }
+</script>
+</body>
+</html>

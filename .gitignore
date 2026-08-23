@@ -1,0 +1,17 @@
+# Large datasets (regeneratable via download scripts, don't commit)
+ptbxl_data/
+ecg_images_data/
+ptbxl.zip
+
+# Python environment
+venv/
+__pycache__/
+*.pyc
+
+# OS/editor cruft
+.DS_Store
+.vscode/
+
+# Kaggle credentials (never commit these)
+.kaggle/
+dataset-metadata.json

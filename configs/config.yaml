@@ -1,0 +1,47 @@
+# HeartScript config — defaults tuned for a weak/no local GPU.
+# Bump batch_size / model dims once you move to Colab or AWS GPU.
+
+data:
+  ptbxl_root: "./ptbxl_data"          # where download_ptbxl.py puts files
+  sampling_rate: 100                   # use the 100Hz PTB-XL variant (much smaller than 500Hz)
+  window_seconds: 5                    # crop each 10s record to 5s windows -> 500 samples @100Hz
+  n_leads: 12
+  subset_fraction: 1.0                # use 15% of PTB-XL for fast local iteration; set 1.0 for full run
+  val_fraction: 0.15
+  test_fraction: 0.15
+  seed: 42
+
+encoder:
+  type: "cnn1d"                        # "cnn1d" (cheap, CPU-friendly) or "transformer" (needs GPU)
+  in_channels: 12
+  embed_dim: 128
+  depth: 4                             # number of conv blocks
+
+mae:
+  mask_ratio: 0.5
+  patch_size: 25                       # 25 samples per patch @100Hz = 0.25s patches
+  epochs: 30
+  batch_size: 32
+  lr: 0.001
+  device: "cpu"                        # switch to "cuda" if available
+
+simclr:
+  temperature: 0.2
+  epochs: 30
+  batch_size: 64
+  lr: 0.0005
+  proj_dim: 64
+  device: "cpu"
+
+protonet:
+  n_way: 2                             # normal vs anomaly (start binary, extend to multi-class later)
+  k_shot: 5                            # labeled examples per class per episode
+  n_query: 15
+  episodes_per_epoch: 100
+  epochs: 20
+  lr: 0.001
+  device: "cpu"
+
+paths:
+  checkpoints: "./checkpoints"
+  logs: "./logs"
