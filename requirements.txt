@@ -7,3 +7,5 @@ wfdb
 tqdm
 pyyaml
 matplotlib
+fastapi
+uvicorn[standard]
