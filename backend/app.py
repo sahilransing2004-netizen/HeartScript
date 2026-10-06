@@ -99,3 +99,13 @@ class RiskInput(BaseModel):
 @app.post("/risk")
 def risk(data: RiskInput):
     return predict_risk(data.model_dump())
+
+
+import os
+from fastapi.staticfiles import StaticFiles
+
+app.mount(
+    "/",
+    StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static"), html=True),
+    name="static",
+)
