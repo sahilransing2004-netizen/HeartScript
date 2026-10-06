@@ -4,3 +4,8 @@ python-multipart
 torch
 torchvision
 pillow
+
+scikit-learn==1.9.1
+pandas==3.0.5
+joblib==1.5.3
+numpy==2.5.2
