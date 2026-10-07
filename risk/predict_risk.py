@@ -25,6 +25,7 @@ def predict_risk(values: dict) -> dict:
 
     return {
         "risk_score": round(score, 3),
+        "prediction": "Heart disease likely" if score >= REFER_THRESHOLD else "Heart disease unlikely",
         "flag": flag,
         "disclaimer": "Screening aid only. Not a diagnosis. Always consult a doctor.",
     }

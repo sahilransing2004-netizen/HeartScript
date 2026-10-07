@@ -197,7 +197,7 @@
         riskStatus.textContent = "";
         const cls = d.flag.includes("soon") ? "soon" : d.flag.startsWith("Refer") ? "refer" : "ok";
         riskResult.classList.add("show", cls);
-        document.getElementById("riskLabel").textContent = d.flag;
+        document.getElementById("riskLabel").textContent = d.prediction + " · " + d.flag;
         document.getElementById("riskScore").textContent = "Model score: " + d.risk_score + " (0 to 1, not a percentage chance)";
         document.getElementById("riskDisc").textContent = d.disclaimer;
       })
