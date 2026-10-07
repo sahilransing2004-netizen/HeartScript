@@ -61,6 +61,12 @@ using PTB-XL's `diagnostic_superclass` aggregation. This is intentional for stag
 `protonet.n_way` and the label logic in `data/dataset.py` to the 5 PTB-XL superclasses
 (NORM, MI, STTC, CD, HYP) for a harder, more useful multi-class version.
 
+
+## Heart risk demo: folder layout
+- `backend/` is what the server runs: `app.py`, the model code in `backend/risk/`, and the web page in `backend/static/index.html`.
+- `risk/` is the working folder for the heart risk model: training and evaluation scripts, `heart.csv` and `results.csv`.
+- After changing `risk/predict_risk.py`, copy it to `backend/risk/predict_risk.py`. The server only reads the `backend/` copy.
+- Start the server from `backend/`: `python -m uvicorn app:app --port 8000`, then open http://127.0.0.1:8000.
 ## What's NOT done yet
 
 - No hyperparameter tuning — these are reasonable starting defaults, not tuned.
