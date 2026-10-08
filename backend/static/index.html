@@ -139,9 +139,74 @@
         resultConfidence.textContent =
           `Confidence: ${(data.confidence * 100).toFixed(1)}%  ·  ` +
           `P(normal)=${data.p_normal}  P(abnormal)=${data.p_abnormal}`;
+        saveEcg(file, data);
       })
       .catch((err) => { status.textContent = "Error: " + err.message + " (is the backend running?)"; });
   }
+
+  /* ---------- Saved ECGs (this browser only) ---------- */
+  const SAVE_KEY = "heartscript_saved_ecgs";
+  const MAX_SAVED = 5;
+  const savedBox = document.createElement("div");
+  savedBox.style.marginTop = "20px";
+  result.insertAdjacentElement("afterend", savedBox);
+
+  function loadSaved() {
+    try { return JSON.parse(localStorage.getItem(SAVE_KEY)) || []; } catch (e) { return []; }
+  }
+  function writeSaved(list) {
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(list)); return true; } catch (e) { return false; }
+  }
+  function shrinkImage(file, maxW, cb) {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, maxW / img.width);
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * scale);
+      c.height = Math.round(img.height * scale);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      cb(c.toDataURL("image/jpeg", 0.7));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); cb(null); };
+    img.src = url;
+  }
+  function saveEcg(file, data) {
+    shrinkImage(file, 600, (thumb) => {
+      if (!thumb) return;
+      const list = loadSaved();
+      list.unshift({ t: Date.now(), label: data.label, conf: data.confidence, img: thumb });
+      while (list.length > MAX_SAVED) list.pop();
+      while (!writeSaved(list) && list.length > 1) list.pop();
+      renderSaved();
+    });
+  }
+  function renderSaved() {
+    const list = loadSaved();
+    savedBox.innerHTML = "";
+    if (!list.length) return;
+    const h = document.createElement("h3");
+    h.textContent = "Saved ECGs (this browser only)";
+    savedBox.appendChild(h);
+    list.forEach((it) => {
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;gap:12px;align-items:center;margin:8px 0;";
+      const im = document.createElement("img");
+      im.src = it.img;
+      im.alt = "Saved ECG";
+      im.style.cssText = "width:90px;border-radius:6px;";
+      const tx = document.createElement("div");
+      tx.textContent = it.label + " \u00b7 " + (it.conf * 100).toFixed(1) + "% \u00b7 " + new Date(it.t).toLocaleString();
+      row.append(im, tx);
+      savedBox.appendChild(row);
+    });
+    const clr = document.createElement("button");
+    clr.textContent = "Clear saved ECGs";
+    clr.onclick = () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} renderSaved(); };
+    savedBox.appendChild(clr);
+  }
+  renderSaved();
 
   /* ---------- Heart risk ---------- */
   const YN = [[0, "No"], [1, "Yes"]];
