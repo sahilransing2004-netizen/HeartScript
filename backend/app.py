@@ -193,7 +193,8 @@ def chat(req: ChatRequest, request: Request):
                 delta = chunk.choices[0].delta.content
                 if delta:
                     yield delta
-        except Exception:
+        except Exception as e:
+            print("CHAT ERROR:", type(e).__name__, str(e)[:300], flush=True)
             yield "\n\n[The assistant is unavailable right now. Please try again in a moment.]"
 
     return StreamingResponse(stream(), media_type="text/plain")
