@@ -11,3 +11,5 @@ pyyaml
 matplotlib
 fastapi
 uvicorn[standard]
+groq
+python-dotenv

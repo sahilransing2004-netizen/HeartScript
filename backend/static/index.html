@@ -88,7 +88,7 @@
 
 <script>
   const LOCAL = ["", "localhost", "127.0.0.1"].includes(location.hostname);
-  const API_BASE = LOCAL ? "http://127.0.0.1:8000" : "https://heartscript-backend.onrender.com";
+  const API_BASE = LOCAL ? window.location.origin : "https://heartscript-backend.onrender.com";
   const API_URL = API_BASE + "/predict";
   const RISK_URL = API_BASE + "/risk";
 
@@ -207,6 +207,102 @@
     savedBox.appendChild(clr);
   }
   renderSaved();
+
+  /* ---------- Ask AI chat ---------- */
+  const CHAT_URL = API_BASE + "/chat";
+  const chatHistory = [];
+  let chatBusy = false;
+
+  const chatBtn = document.createElement("button");
+  chatBtn.textContent = "Ask AI";
+  chatBtn.style.cssText = "position:fixed;right:16px;bottom:16px;z-index:9999;padding:12px 18px;border:0;border-radius:24px;background:#c0392b;color:#fff;font-size:15px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3);";
+  const chatPanel = document.createElement("div");
+  chatPanel.style.cssText = "position:fixed;right:16px;bottom:70px;z-index:9999;width:min(360px,calc(100vw - 32px));height:min(480px,70vh);display:none;flex-direction:column;background:#fff;color:#1a1a1a;border:1px solid #ddd;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.25);font-size:14px;overflow:hidden;";
+  const chatHead = document.createElement("div");
+  chatHead.textContent = "Ask AI (health education only)";
+  chatHead.style.cssText = "padding:10px 12px;font-weight:600;border-bottom:1px solid #eee;";
+  const chatNote = document.createElement("div");
+  chatNote.textContent = "Not medical advice. Your messages and latest result are sent to an AI service. In an emergency call 112 or 108.";
+  chatNote.style.cssText = "padding:6px 12px;font-size:11px;color:#666;background:#fafafa;border-bottom:1px solid #eee;";
+  const chatLog = document.createElement("div");
+  chatLog.style.cssText = "flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:8px;";
+  const chatRow = document.createElement("div");
+  chatRow.style.cssText = "display:flex;gap:6px;padding:8px;border-top:1px solid #eee;";
+  const chatInput = document.createElement("input");
+  chatInput.type = "text";
+  chatInput.maxLength = 1000;
+  chatInput.placeholder = "Ask about your result...";
+  chatInput.style.cssText = "flex:1;padding:8px;border:1px solid #ccc;border-radius:6px;font-size:14px;color:#1a1a1a;background:#fff;";
+  const chatSend = document.createElement("button");
+  chatSend.textContent = "Send";
+  chatSend.style.cssText = "padding:8px 12px;border:0;border-radius:6px;background:#c0392b;color:#fff;cursor:pointer;";
+  chatRow.append(chatInput, chatSend);
+  chatPanel.append(chatHead, chatNote, chatLog, chatRow);
+  document.body.append(chatBtn, chatPanel);
+
+  chatBtn.addEventListener("click", () => {
+    chatPanel.style.display = chatPanel.style.display === "flex" ? "none" : "flex";
+    if (chatPanel.style.display === "flex") chatInput.focus();
+  });
+
+  function addBubble(role, text) {
+    const b = document.createElement("div");
+    b.textContent = text;
+    b.style.cssText = "max-width:85%;padding:8px 10px;border-radius:10px;white-space:pre-wrap;word-break:break-word;" +
+      (role === "user" ? "align-self:flex-end;background:#e8f0fe;" : "align-self:flex-start;background:#f3f3f3;");
+    chatLog.appendChild(b);
+    chatLog.scrollTop = chatLog.scrollHeight;
+    return b;
+  }
+  addBubble("assistant", "Hi! I can explain your ECG or heart risk result in simple words. I can't diagnose, so please see a doctor for any health concern.");
+
+  function chatContext() {
+    const parts = [];
+    try {
+      if (result.classList.contains("show")) {
+        parts.push("ECG image result: " + resultLabel.textContent + " (" + resultConfidence.textContent + ")");
+      }
+      const rl = document.getElementById("riskLabel");
+      if (rl && rl.textContent.trim()) parts.push("Heart risk result: " + rl.textContent.trim());
+    } catch (e) {}
+    return parts.join("\n").slice(0, 800);
+  }
+
+  async function sendChat() {
+    const text = chatInput.value.trim();
+    if (!text || chatBusy) return;
+    chatBusy = true;
+    chatInput.value = "";
+    chatHistory.push({ role: "user", content: text.slice(0, 1000) });
+    addBubble("user", text);
+    const bot = addBubble("assistant", "...");
+    let acc = "";
+    try {
+      const res = await fetch(CHAT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: chatHistory.slice(-10), context: chatContext() || null })
+      });
+      if (!res.ok) throw new Error(res.status === 429 ? "Too many messages, please wait a few minutes." : "Server error " + res.status);
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        acc += dec.decode(value, { stream: true });
+        bot.textContent = acc;
+        chatLog.scrollTop = chatLog.scrollHeight;
+      }
+      if (!acc) { acc = "(no reply)"; bot.textContent = acc; }
+      chatHistory.push({ role: "assistant", content: acc.slice(0, 1000) });
+    } catch (e) {
+      bot.textContent = "Error: " + e.message;
+      chatHistory.pop();
+    }
+    chatBusy = false;
+  }
+  chatSend.addEventListener("click", sendChat);
+  chatInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendChat(); });
 
   /* ---------- Heart risk ---------- */
   const YN = [[0, "No"], [1, "Yes"]];
