@@ -200,6 +200,27 @@ def chat(req: ChatRequest, request: Request):
     return StreamingResponse(stream(), media_type="text/plain")
 
 
+# ---- Photo-ECG (paper model): quality gate -> model -> calibration -> abstain ----
+_photo_predictor = None
+
+
+def _get_photo_predictor():
+    global _photo_predictor
+    if _photo_predictor is None:
+        from hs.predict import PhotoECGPredictor
+        base = Path(__file__).resolve().parent / "photo_model"
+        _photo_predictor = PhotoECGPredictor(str(base / "best.pt"), str(base / "calib.json"), device="cpu")
+    return _photo_predictor
+
+
+@app.post("/predict-photo")
+async def predict_photo(file: UploadFile = File(...)):
+    data = await file.read()
+    if len(data) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Image too large (max 10 MB).")
+    return _get_photo_predictor().predict_bytes(data)
+
+
 app.mount(
     "/",
     StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static"), html=True),

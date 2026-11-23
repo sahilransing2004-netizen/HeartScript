@@ -1,0 +1,24 @@
+{
+  "temperature": 1.231840097732852,
+  "threshold_binary": 0.6045302152633667,
+  "thresholds_per_class": {
+    "NORM": 0.39999999999999997,
+    "MI": 0.35,
+    "STTC": 0.35,
+    "CD": 0.39999999999999997,
+    "HYP": 0.3
+  },
+  "tau": 0.7485289573669434,
+  "coverage_target": 0.8,
+  "quality_gate": {
+    "blur_min": 23.36743724295595,
+    "mean_min": 35.0,
+    "mean_max": 245.0,
+    "std_min": 17.952248424284555,
+    "orient_min": 0.24202136635780336,
+    "dark_frac_min": 0.003111197916666667,
+    "dark_frac_max": 0.0962980143229164,
+    "trace_extent_min": 0.3
+  },
+  "ckpt": "runs/imagenet_100/best.pt"
+}

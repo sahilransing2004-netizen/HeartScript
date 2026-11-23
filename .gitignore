@@ -16,3 +16,4 @@ __pycache__/
 .kaggle/
 dataset-metadata.json
 .env
+*.bak*
