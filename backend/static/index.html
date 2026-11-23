@@ -89,7 +89,7 @@
 <script>
   const LOCAL = ["", "localhost", "127.0.0.1"].includes(location.hostname);
   const API_BASE = LOCAL ? window.location.origin : "https://heartscript-backend.onrender.com";
-  const API_URL = API_BASE + "/predict";
+  const API_URL = API_BASE + "/predict-photo";
   const RISK_URL = API_BASE + "/risk";
 
   /* ---------- tabs ---------- */
@@ -130,18 +130,41 @@
     status.textContent = "Analyzing...";
     const formData = new FormData();
     formData.append("file", file);
-    fetch(API_URL, { method: "POST", body: formData })
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 120000);
+    status.textContent = "Analyzing... (first request can take up to a minute)";
+    fetch(API_URL, { method: "POST", body: formData, signal: ctrl.signal })
       .then((res) => { if (!res.ok) throw new Error("Server error " + res.status); return res.json(); })
       .then((data) => {
+        clearTimeout(timer);
         status.textContent = "";
-        result.classList.add("show", data.label);
-        resultLabel.textContent = data.label;
+        if (data.status === "rejected") {
+          result.classList.add("show");
+          resultLabel.textContent = "Photo not usable";
+          resultConfidence.textContent = "Reason: " + (data.reasons || []).join("; ") + ". Please upload a clear photo of a 12-lead ECG print.";
+          return;
+        }
+        if (data.status === "abstain") {
+          result.classList.add("show");
+          resultLabel.textContent = "Not sure";
+          resultConfidence.textContent = "The model is not confident enough on this photo. Try a clearer, flatter, well-lit photo.";
+          return;
+        }
+        const label = data.decision;
+        const pAbn = data.p_abnormal;
+        const pNorm = +(1 - pAbn).toFixed(3);
+        result.classList.add("show", label);
+        resultLabel.textContent = label;
         resultConfidence.textContent =
-          `Confidence: ${(data.confidence * 100).toFixed(1)}%  ·  ` +
-          `P(normal)=${data.p_normal}  P(abnormal)=${data.p_abnormal}`;
-        saveEcg(file, data);
+          `Confidence: ${(data.confidence * 100).toFixed(1)}%  ·  P(normal)=${pNorm}  P(abnormal)=${pAbn.toFixed(3)}  ·  ` + data.disclaimer;
+        saveEcg(file, { label: label, confidence: data.confidence, p_normal: pNorm, p_abnormal: +pAbn.toFixed(3) });
       })
-      .catch((err) => { status.textContent = "Error: " + err.message + " (is the backend running?)"; });
+      .catch((err) => {
+        clearTimeout(timer);
+        status.textContent = err.name === "AbortError"
+          ? "Timed out. The server may be waking up, please try again."
+          : "Error: " + err.message + " (is the backend running?)";
+      });
   }
 
   /* ---------- Saved ECGs (this browser only) ---------- */
